@@ -8,10 +8,10 @@ TOKEN = "8818640282:AAG29Y3Vk3utyvF3fjX0Oy4B0CUqZRccyaQ"
 bot = telebot.TeleBot(TOKEN)
 
 # Твой адрес на Render (ОБЯЗАТЕЛЬНО укажи свою ссылку без слэша на конце!)
-RENDER_URL = "https://timekiller-server.onrender.com"
+RENDER_URL = "https://timekiller.onrender.com"
 
 # Твой GitHub Pages (Обязательно замени 'твой-никнейм'!)
-WEBAPP_URL = "https://твой-никнейм.github.io/timekiller/?v=2" 
+WEBAPP_URL = "https://hroza-2.github.io/timekiller/?v=2" 
 
 app = Flask(__name__)
 
