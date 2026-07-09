@@ -11,7 +11,7 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #121212; /* Черный фон вместо белого */
+            background-color: #121212;
             color: #ffffff;
             font-family: sans-serif;
             display: flex;
@@ -55,13 +55,65 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
+        // Получаем ID пользователя из Telegram
+        const user = tg.initDataUnsafe?.user;
+        const userId = user ? user.id : 12345; // 12345 — заглушка для тестов в браузере
+
+        // Сюда нужно будет прописать адрес твоего Flask-сервера
+        // Если тестируешь через локальную сеть, укажи IP компа/телефона
+        const SERVER_URL = "http://localhost:5000"; 
+
         let balance = 0;
+        let unsavedClicks = 0;
         const balanceTxt = document.getElementById('balance');
         const coinBtn = document.getElementById('coin');
+
+        // Запрашиваем баланс из базы данных при старте
+        async function loadProfile() {
+            try {
+                let response = await fetch(`${SERVER_URL}/api/get_profile`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                let data = await response.json();
+                if (data.balance !== undefined) {
+                    balance = data.balance;
+                    balanceTxt.innerText = balance;
+                }
+            } catch (err) {
+                console.log("Ошибка загрузки профиля:", err);
+            }
+        }
+
+        // Отправка кликов на сервер пачкой (каждые 3 секунды), чтобы не спамить запросами
+        async function sendClicksToServer() {
+            if (unsavedClicks === 0) return;
+
+            let clicksToSend = unsavedClicks;
+            unsavedClicks = 0; // Сбрасываем локальный счетчик перед отправкой
+
+            try {
+                let response = await fetch(`${SERVER_URL}/api/tap`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, clicks: clicksToSend })
+                });
+                let data = await response.json();
+                if (data.status === "success") {
+                    balance = data.new_balance;
+                    balanceTxt.innerText = balance;
+                }
+            } catch (err) {
+                console.log("Ошибка отправки кликов:", err);
+                unsavedClicks += clicksToSend; // Если сеть упала, возвращаем клики обратно
+            }
+        }
 
         function doTap(e) {
             e.preventDefault();
             balance++;
+            unsavedClicks++;
             balanceTxt.innerText = balance;
             
             if (tg.HapticFeedback) {
@@ -73,9 +125,16 @@
         coinBtn.addEventListener('click', (e) => {
             if (e.pointerType !== 'touch') {
                 balance++;
+                unsavedClicks++;
                 balanceTxt.innerText = balance;
             }
         });
+
+        // Запускаем загрузку профиля
+        loadProfile();
+
+        // Отправляем клики на сервер каждые 3 секунды
+        setInterval(sendClicksToServer, 3000);
     </script>
 </body>
 </html>
