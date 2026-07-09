@@ -1,19 +1,18 @@
 import telebot
 import sqlite3
-import json
 from telebot import types
 from flask import Flask, request, jsonify
-from threading import Thread
 
 # Настройки бота
 TOKEN = "8818640282:AAG29Y3Vk3utyvF3fjX0Oy4B0CUqZRccyaQ"
 bot = telebot.TeleBot(TOKEN)
 
-# Ссылка на твой GitHub Pages (Параметр ?v=2 сбивает кэш)
-# НЕ ЗАБУДЬ поменять 'твой-никнейм' на свой ник на Гитхабе!
+# Твой адрес на Render (ОБЯЗАТЕЛЬНО укажи свою ссылку без слэша на конце!)
+RENDER_URL = "https://timekiller-server.onrender.com"
+
+# Твой GitHub Pages (Обязательно замени 'твой-никнейм'!)
 WEBAPP_URL = "https://твой-никнейм.github.io/timekiller/?v=2" 
 
-# Создаем Flask-сервер прямо внутри бота для приема тапов
 app = Flask(__name__)
 
 def init_db():
@@ -44,34 +43,37 @@ def save_balance(user_id, added_clicks):
     conn.commit()
     conn.close()
 
-# API Эндпоинт: сюда игра будет отправлять натапанное
+# Эндпоинт для приема сообщений от самого Telegram (Webhook)
+@app.route('/' + TOKEN, methods=['POST'])
+def get_message():
+    json_string = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "!", 200
+
+# API Эндпоинты для игры
 @app.route('/api/tap', methods=['POST'])
 def handle_tap():
     data = request.json
     user_id = data.get('user_id')
     clicks = data.get('clicks', 0)
-    
     if user_id:
         save_balance(user_id, clicks)
-        new_balance = get_user_balance(user_id)
-        return jsonify({"status": "success", "new_balance": new_balance})
+        return jsonify({"status": "success", "new_balance": get_user_balance(user_id)})
     return jsonify({"status": "error"}), 400
 
-# API Эндпоинт: получение баланса при старте игры
 @app.route('/api/get_profile', methods=['POST'])
 def get_profile():
     data = request.json
     user_id = data.get('user_id')
     if user_id:
-        balance = get_user_balance(user_id)
-        return jsonify({"balance": balance})
+        return jsonify({"balance": get_user_balance(user_id)})
     return jsonify({"error": "no_user"}), 400
 
+# Обработка команд
 @bot.message_handler(commands=['start'])
 def start_handler(message):
-    # Регистрируем в базе при старте
     save_balance(message.from_user.id, 0)
-    
     inline_markup = types.InlineKeyboardMarkup()
     webapp_info = types.WebAppInfo(WEBAPP_URL)
     btn_apps = types.InlineKeyboardButton(text="🎮 Запустить TimeKiller", web_app=webapp_info)
@@ -83,13 +85,13 @@ def start_handler(message):
         reply_markup=inline_markup
     )
 
-# Функция для запуска Flask в отдельном потоке
-def run_flask():
-    app.run(host="0.0.0.0", port=5000)
+# Главная страничка для проверки в браузере
+@app.route('/')
+def index():
+    return "Bot server is running successfully!", 200
 
-if __name__ == "__main__":
-    init_db()
-    # Запускаем веб-сервер для связи с игрой
-    Thread(target=run_flask).start()
-    print("Бот и сервер синхронизации успешно запущены!")
-    bot.infinity_polling()
+init_db()
+
+# Принудительно устанавливаем вебхук при запуске сервера
+bot.remove_webhook()
+bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
