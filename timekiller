@@ -1,0 +1,54 @@
+import telebot
+import sqlite3
+from telebot import types
+
+# Твой личный токен уже на месте
+TOKEN = "8818640282:AAG29Y3Vk3utyvF3fjX0Oy4B0CUqZRccyaQ"
+bot = telebot.TeleBot(TOKEN)
+
+# Пока здесь стоит заглушка. Как только зальем твой index.html в сеть,
+# заменим эту ссылку на твою настоящую!
+WEBAPP_URL = "https://google.com" 
+
+# Инициализация базы данных
+def init_db():
+    conn = sqlite3.connect("timekiller.db")
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users 
+                      (telegram_id INTEGER PRIMARY KEY, balance INTEGER, energy INTEGER)''')
+    conn.commit()
+    conn.close()
+
+# Регистрация пользователя в базе
+def register_user(user_id):
+    conn = sqlite3.connect("timekiller.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE telegram_id = ?", (user_id,))
+    if not cursor.fetchone():
+        cursor.execute("INSERT INTO users VALUES (?, ?, ?)", (user_id, 0, 1000))
+    conn.commit()
+    conn.close()
+
+# Обработчик команды /start
+@bot.message_handler(commands=['start'])
+def start_handler(message):
+    register_user(message.from_user.id)
+    
+    # Создаем инлайн-кнопку под сообщением
+    inline_markup = types.InlineKeyboardMarkup()
+    webapp_info = types.WebAppInfo(WEBAPP_URL)
+    
+    # Эта кнопка железно откроет приложение шторкой прямо в Telegram
+    btn_apps = types.InlineKeyboardButton(text="🎮 Запустить TimeKiller", web_app=webapp_info)
+    inline_markup.add(btn_apps)
+    
+    bot.send_message(
+        message.chat.id, 
+        "Добро пожаловать в TimeKiller! 🚀\n\nНажми на кнопку ниже, чтобы запустить игру прямо внутри Telegram:", 
+        reply_markup=inline_markup
+    )
+
+if __name__ == "__main__":
+    init_db()
+    print("Бот успешно запущен! Проверяй в Telegram...")
+    bot.infinity_polling()
