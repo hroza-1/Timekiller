@@ -7,10 +7,10 @@ from flask import Flask, request, jsonify
 TOKEN = "8818640282:AAG29Y3Vk3utyvF3fjX0Oy4B0CUqZRccyaQ"
 bot = telebot.TeleBot(TOKEN)
 
-# Твой адрес на Render (ОБЯЗАТЕЛЬНО укажи свою ссылку без слэша на конце!)
+# Твой адрес на Render
 RENDER_URL = "https://timekiller.onrender.com"
 
-# Твой GitHub Pages (Обязательно замени 'твой-никнейм'!)
+# Твой GitHub Pages
 WEBAPP_URL = "https://hroza-2.github.io/timekiller/?v=2" 
 
 app = Flask(__name__)
@@ -78,7 +78,7 @@ def start_handler(message):
     webapp_info = types.WebAppInfo(WEBAPP_URL)
     btn_apps = types.InlineKeyboardButton(text="🎮 Запустить TimeKiller", web_app=webapp_info)
     inline_markup.add(btn_apps)
-    
+
     bot.send_message(
         message.chat.id, 
         f"Привет, {message.from_user.first_name}! 🚀\nТвой текущий баланс: {get_user_balance(message.from_user.id)} 💰\n\nНажимай кнопку ниже, чтобы начать убивать время:", 
@@ -90,8 +90,9 @@ def start_handler(message):
 def index():
     return "Bot server is running successfully!", 200
 
-init_db()
-
-# Принудительно устанавливаем вебхук при запуске сервера
-bot.remove_webhook()
-bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
+# Правильный запуск инициализации базы и вебхука внутри Flask
+@app.before_all_requests
+def setup():
+    init_db()
+    bot.remove_webhook()
+    bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
