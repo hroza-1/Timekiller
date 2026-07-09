@@ -90,9 +90,17 @@ def start_handler(message):
 def index():
     return "Bot server is running successfully!", 200
 
-# Правильный запуск инициализации базы и вебхука внутри Flask
-@app.before_request
-def setup():
-    init_db()
-    bot.remove_webhook()
-    bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
+init_db()
+
+# Безопасная установка вебхука без спама в Telegram
+try:
+    webhook_info = bot.get_webhook_info()
+    expected_url = f"{RENDER_URL}/{TOKEN}"
+    if webhook_info.url != expected_url:
+        bot.remove_webhook()
+        bot.set_webhook(url=expected_url)
+        print("Вебхук успешно обновлен!")
+    else:
+        print("Вебхук уже настроен правильно, пропускаем.")
+except Exception as e:
+    print(f"Ошибка при настройке вебхука: {e}")
