@@ -91,7 +91,7 @@ def index():
     return "Bot server is running successfully!", 200
 
 # Правильный запуск инициализации базы и вебхука внутри Flask
-@app.before_all_requests
+@app.before_request
 def setup():
     init_db()
     bot.remove_webhook()
